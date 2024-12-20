@@ -35,6 +35,9 @@ spec:
         - name: prometheus-tls
           secret:
             secretName: prometheus-tls # Das Secret für TLS-Zertifikate
+        - name: prometheus-ca
+          secret:
+            secretName: prometheus-ca # Das Secret für das CA-Zertifikat
 ---
 apiVersion: v1
 kind: Service
