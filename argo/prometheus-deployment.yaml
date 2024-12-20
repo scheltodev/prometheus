@@ -13,6 +13,7 @@ spec:
       labels:
         app: prometheus
     spec:
+      serviceAccountName: prometheus # Dedizierter ServiceAccount für Prometheus
       containers:
         - name: prometheus
           image: prom/prometheus:latest
@@ -80,3 +81,42 @@ data:
         relabel_configs:
           - source_labels: [__meta_kubernetes_node_name]
             target_label: instance
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: prometheus # Namespace für Prometheus
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-cluster-role
+  namespace: prometheus # Namespace für Prometheus
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "nodes/proxy", "services", "pods", "endpoints"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["extensions"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-cluster-role-binding
+  namespace: prometheus
+subjects:
+  - kind: ServiceAccount
+    name: prometheus # Der ServiceAccount für Prometheus
+    namespace: prometheus # Namespace für Prometheus
+roleRef:
+  kind: ClusterRole
+  name: prometheus-cluster-role # ClusterRole für Prometheus
+  apiGroup: rbac.authorization.k8s.io
