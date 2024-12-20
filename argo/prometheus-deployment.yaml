@@ -24,10 +24,10 @@ spec:
             - name: prometheus-data
               mountPath: /prometheus
             - name: prometheus-tls
-              mountPath: /etc/prometheus/secrets
+              mountPath: /etc/prometheus/tls # TLS-Zertifikate in ein eigenes Verzeichnis
               readOnly: true # Zertifikate sind nur lesbar
-            - name: prometheus-ca # CA-Zertifikat hinzufügen
-              mountPath: /etc/prometheus/secrets
+            - name: prometheus-ca
+              mountPath: /etc/prometheus/ca # CA-Zertifikat in ein eigenes Verzeichnis
               readOnly: true # CA-Zertifikat ist nur lesbar
       volumes:
         - name: prometheus-config
@@ -73,9 +73,9 @@ data:
         scheme: https               # HTTPS aktivieren
         metrics_path: /metrics      # Oder /metrics/cadvisor, je nach dem Endpoint
         tls_config:
-          ca_file: /etc/prometheus/secrets/ca.crt    # CA-Zertifikat
-          cert_file: /etc/prometheus/secrets/tls.crt  # Server-Zertifikat
-          key_file: /etc/prometheus/secrets/tls.key   # Der private Schlüssel
+          ca_file: /etc/prometheus/ca/ca.crt    # CA-Zertifikat
+          cert_file: /etc/prometheus/tls/tls.crt  # Server-Zertifikat
+          key_file: /etc/prometheus/tls/tls.key   # Der private Schlüssel
         relabel_configs:
           - source_labels: [__meta_kubernetes_node_name]
             target_label: instance
