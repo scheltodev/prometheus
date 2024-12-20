@@ -76,6 +76,7 @@ data:
           ca_file: /etc/prometheus/ca/ca.crt    # CA-Zertifikat
           cert_file: /etc/prometheus/tls/tls.crt  # Server-Zertifikat
           key_file: /etc/prometheus/tls/tls.key   # Der private Schlüssel
+          insecure_skip_verify: true  # Zertifikatsvalidierung überspringen (für selbstsignierte Zertifikate)
         relabel_configs:
           - source_labels: [__meta_kubernetes_node_name]
             target_label: instance
