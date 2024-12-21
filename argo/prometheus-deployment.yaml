@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: prometheus
-  namespace: prometheus # Namespace für Prometheus
+  namespace: prometheus
 spec:
   replicas: 1
   selector:
@@ -13,48 +13,56 @@ spec:
       labels:
         app: prometheus
     spec:
-      serviceAccountName: prometheus # Dedizierter ServiceAccount für Prometheus
+      serviceAccountName: prometheus
       containers:
         - name: prometheus
-          image: prom/prometheus:latest
+          image: prom/prometheus:v2.45.0 # ARM-kompatible Version
           ports:
             - containerPort: 9090
+          resources:
+            requests:
+              memory: "500Mi" # Initialer Bedarf an RAM
+              cpu: "250m" # CPU-Request für Prometheus
+            limits:
+              memory: "1Gi" # Maximale RAM-Nutzung
+              cpu: "500m" # Maximale CPU-Nutzung
           volumeMounts:
             - name: prometheus-config
               mountPath: /etc/prometheus
             - name: prometheus-data
               mountPath: /prometheus
             - name: prometheus-tls
-              mountPath: /etc/prometheus/tls # TLS-Zertifikate in ein eigenes Verzeichnis
-              readOnly: true # Zertifikate sind nur lesbar
+              mountPath: /etc/prometheus/tls
+              readOnly: true
             - name: prometheus-ca
-              mountPath: /etc/prometheus/ca # CA-Zertifikat in ein eigenes Verzeichnis
-              readOnly: true # CA-Zertifikat ist nur lesbar
+              mountPath: /etc/prometheus/ca
+              readOnly: true
       volumes:
         - name: prometheus-config
           configMap:
-            name: prometheus-config # Die ConfigMap bleibt erhalten
+            name: prometheus-config
         - name: prometheus-data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: prometheus-pvc # PVC für dauerhafte Datenspeicherung
         - name: prometheus-tls
           secret:
-            secretName: prometheus-tls # Das Secret für TLS-Zertifikate
+            secretName: prometheus-tls
         - name: prometheus-ca
           secret:
-            secretName: prometheus-ca # Das Secret für das CA-Zertifikat
+            secretName: prometheus-ca
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: prometheus-service
-  namespace: prometheus # Namespace für Prometheus
+  namespace: prometheus
 spec:
   ports:
     - port: 9090
       targetPort: 9090
   selector:
     app: prometheus
-  type: NodePort # NodePort für externen Zugriff
+  type: NodePort
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -71,13 +79,13 @@ data:
       - job_name: 'kubernetes'
         kubernetes_sd_configs:
           - role: node
-        scheme: https               # HTTPS aktivieren
-        metrics_path: /metrics      # Oder /metrics/cadvisor, je nach dem Endpoint
+        scheme: https
+        metrics_path: /metrics
         tls_config:
-          ca_file: /etc/prometheus/ca/ca.crt    # CA-Zertifikat
-          cert_file: /etc/prometheus/tls/tls.crt  # Server-Zertifikat
-          key_file: /etc/prometheus/tls/tls.key   # Der private Schlüssel
-          insecure_skip_verify: true  # Zertifikatsvalidierung überspringen (für selbstsignierte Zertifikate)
+          ca_file: /etc/prometheus/ca/ca.crt
+          cert_file: /etc/prometheus/tls/tls.crt
+          key_file: /etc/prometheus/tls/tls.key
+          insecure_skip_verify: true
         relabel_configs:
           - source_labels: [__meta_kubernetes_node_name]
             target_label: instance
@@ -86,13 +94,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: prometheus
-  namespace: prometheus # Namespace für Prometheus
+  namespace: prometheus
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: prometheus-cluster-role
-  namespace: prometheus # Namespace für Prometheus
+  namespace: prometheus
 rules:
   - apiGroups: [""]
     resources: ["nodes", "nodes/proxy", "services", "pods", "endpoints"]
@@ -114,9 +122,21 @@ metadata:
   namespace: prometheus
 subjects:
   - kind: ServiceAccount
-    name: prometheus # Der ServiceAccount für Prometheus
-    namespace: prometheus # Namespace für Prometheus
+    name: prometheus
+    namespace: prometheus
 roleRef:
   kind: ClusterRole
-  name: prometheus-cluster-role # ClusterRole für Prometheus
+  name: prometheus-cluster-role
   apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-pvc
+  namespace: prometheus
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi # Speicheranforderung für Prometheus-Daten
